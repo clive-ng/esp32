@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  	<meta charset="utf-8">
+  	<meta name="viewport" content="initial-scale=1, width=device-width">
+  	
+  	<link rel="stylesheet"  href="./index.css" />
+  	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200&display=swap" />
+  	
+  	
+  	
+</head>
+<body>
+  	
+  	<div class="container">
+    		<div class="sec1">
+      			<div class="title">
+        				<div class="dinosaur">Dinosaur</div>
+      			</div>
+      			<div class="subtext">
+        				<div class="museum-explorer">Museum explorer</div>
+      			</div>
+    		</div>
+    		<div class="sec2">
+      			<div class="ed-title">
+        				<div class="estimated-distance">Estimated Distance:</div>
+      			</div>
+      			<div class="scanbtngroup-parent">
+        				<div class="scanbtngroup">
+          					<div id="scanBtn" class="scanbtn">Connected</div>
+        				</div>
+        				<div class="distance">
+          					<div id="distanceLabel" class="distancelabel">3.05</div>
+        				</div>
+      			</div>
+    		</div>
+    		<div class="sec3">
+      			<div class="base">
+ <div id="state1" class="option active">1. No devices nearby...</div>
+    <div id="state2" class="option">2. Signal detected!</div>
+    <div id="state3" class="option">3. Getting closer...</div>
+    <div id="state4" class="option">4. Very close!</div>
+    <div id="state5" class="option">5. Right next to the device!</div>
+      			</div>
+    		</div>
+  	</div>
+  	
+     <script>
+        const scanBtn = document.getElementById('scanBtn');
+        const distanceLabel = document.getElementById('distanceLabel');
+        const states = [
+            document.getElementById('state1'),
+            document.getElementById('state2'),
+            document.getElementById('state3'),
+            document.getElementById('state4'),
+            document.getElementById('state5')
+        ];
+
+        let activeDevice = null;
+        let watchController = new AbortController();
+        let lastSignalTime = Date.now();
+        let smoothedRssi = null;
+        const alpha = 0.7; 
+
+        scanBtn.addEventListener('click', async () => {
+            try {
+                scanBtn.innerText = "Checking Browser Popup...";
+                
+                // ULTIMATE DEBUG: Accept ALL devices, no name filters.
+                activeDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true, 
+                    optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+                });
+
+                scanBtn.innerText = `Connected to: ${activeDevice.name || "Unknown Device"}`;
+
+                activeDevice.addEventListener('advertisementreceived', (event) => {
+                    lastSignalTime = Date.now(); 
+                    
+                    let currentRssi = event.rssi;
+                    if (smoothedRssi === null) {
+                        smoothedRssi = currentRssi;
+                    } else {
+                        smoothedRssi = (alpha * currentRssi) + ((1 - alpha) * smoothedRssi);
+                    }
+                    
+                    let txPower = -59; 
+                    let ratio = (txPower - smoothedRssi) / (10 * 2.0);
+                    let distance = Math.pow(10, ratio).toFixed(2);
+                    
+                    distanceLabel.innerText = distance;
+                    updateUI(distance);
+                });
+
+                startScanning();
+
+            } catch (error) {
+                console.error('Bluetooth Error: ', error);
+                scanBtn.innerText = "Scan for ALL Devices";
+                alert("Scan cancelled or failed. Check console for details.");
+            }
+        });
+
+        async function startScanning() {
+            if (!activeDevice) return;
+            try {
+                watchController.abort(); 
+                watchController = new AbortController();
+                await activeDevice.watchAdvertisements({ signal: watchController.signal });
+                console.log("Scanner is running...");
+            } catch (e) {
+                console.log("Scanner restart note: ", e.message);
+            }
+        }
+
+        setInterval(() => {
+            if (activeDevice && (Date.now() - lastSignalTime > 5000)) {
+                console.log("Signal timeout! Rebooting scanner...");
+                startScanning();
+                lastSignalTime = Date.now(); 
+            }
+        }, 3000);
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && activeDevice) {
+                console.log("Tab focused! Waking up scanner...");
+                startScanning();
+            }
+        });
+
+        function updateUI(dist) {
+            states.forEach(state => state.classList.remove('active'));
+
+            if (dist > 5.0) {
+                states[0].classList.add('active');
+            } else if (dist > 3.0) {
+                states[1].classList.add('active');
+            } else if (dist > 1.5) {
+                states[2].classList.add('active');
+            } else if (dist > 0.5) {
+                states[3].classList.add('active');
+            } else {
+                states[4].classList.add('active');
+            }
+        }
+    </script> 	
+  	
+  	
+</body>
+</html>
