@@ -6,6 +6,8 @@ index.html is the code for Figma (including JS, HTML)
 
 index.css is the modifed CSS code from Fimga (.css only)
 
+exp01.html contains experimental code. You can copy and paste old.html into it and see what the AI comes up with.
+
 Resources
 
 Figma: https://www.figma.com/design/emTn4kotinLpyBF8e7yVUu/WebApp?node-id=0-1&t=cE1FtVn3QhyXCyJv-1
